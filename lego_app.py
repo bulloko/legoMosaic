@@ -1,14 +1,17 @@
-import numpy
-if not hasattr(numpy, "asscalar"):
-    numpy.asscalar = lambda a: a.item()
 import streamlit as st
 from PIL import Image
 from io import BytesIO
+import numpy
+
+# 🔧 Patch for numpy.asscalar deprecation in colormath
+if not hasattr(numpy, "asscalar"):
+    numpy.asscalar = lambda a: a.item()
+
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 
-# LEGO color palette (accurate RGB values)
+# LEGO color palette
 LEGO_COLORS = [
     {"name": "Brick Yellow", "rgb": (236, 217, 185)},
     {"name": "Nougat", "rgb": (204, 142, 105)},
@@ -56,12 +59,10 @@ LEGO_COLORS = [
     {"name": "Vibrant Yellow", "rgb": (255, 239, 0)},
 ]
 
-# RGB → LAB
 def rgb_to_lab(rgb):
     srgb = sRGBColor(rgb[0]/255.0, rgb[1]/255.0, rgb[2]/255.0)
     return convert_color(srgb, LabColor)
 
-# High accuracy color matching
 def closest_lego_color_lab(pixel_rgb):
     target = rgb_to_lab(pixel_rgb)
     closest = LEGO_COLORS[0]
@@ -78,13 +79,11 @@ def closest_lego_color_lab(pixel_rgb):
 
     return closest["rgb"]
 
-# Fast RGB match
 def closest_lego_color(pixel_rgb):
     def distance(c1, c2):
         return sum((a - b) ** 2 for a, b in zip(c1, c2))
     return min(LEGO_COLORS, key=lambda c: distance(pixel_rgb, c["rgb"]))["rgb"]
 
-# Main pixelation function
 def lego_pixelate(img, pixel_size, grid_size, use_lego_palette=True, high_accuracy=True):
     small = img.resize(grid_size, resample=Image.BILINEAR)
     result = Image.new("RGB", (grid_size[0] * pixel_size, grid_size[1] * pixel_size))
@@ -108,8 +107,8 @@ def img_to_bytes(img):
     buf.seek(0)
     return buf
 
-# ---- Streamlit UI ----
-st.set_page_config(page_title="Lego Photo App", layout="centered")
+# ---------------- Streamlit UI ----------------
+st.set_page_config(page_title="Lego-style Photo Editor", layout="centered")
 st.title("🧱 Lego-style Photo Editor")
 
 uploaded = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
@@ -117,7 +116,7 @@ uploaded = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
 if uploaded:
     original = Image.open(uploaded).convert("RGB")
     st.subheader("Original Image")
-    st.image(original, use_column_width=True)
+    st.image(original, use_container_width=True)
 
     st.subheader("Tweak Lego Settings")
     col1, col2 = st.columns(2)
@@ -128,6 +127,16 @@ if uploaded:
 
     aspect_ratio = original.height / original.width
     height_blocks = int(width_blocks * aspect_ratio)
+
+    # 📐 Real-world size calculation
+    BRICK_MM = 7.6
+    width_mm = width_blocks * BRICK_MM
+    height_mm = height_blocks * BRICK_MM
+
+    st.subheader("🧱 Real-World Mosaic Size")
+    st.markdown(f"**{width_blocks} × {height_blocks} bricks**")
+    st.markdown(f"**{width_mm:.1f}mm × {height_mm:.1f}mm** (~{width_mm / 10:.1f}cm × {height_mm / 10:.1f}cm)")
+    st.markdown(f"**{width_mm / 25.4:.2f}in × {height_mm / 25.4:.2f}in**")
 
     use_lego = st.checkbox("Use Real LEGO Colors", value=True)
     high_accuracy = st.checkbox("High Accuracy Color Matching (slower)", value=True)
@@ -140,7 +149,8 @@ if uploaded:
         high_accuracy=high_accuracy
     )
 
-    st.image(lego_img, caption=f"Lego-Style ({width_blocks}x{height_blocks} bricks)", use_column_width=True)
+    st.image(lego_img, caption="Lego-style Image", use_container_width=True)
+
     st.download_button(
         "📥 Download Lego Image",
         data=img_to_bytes(lego_img),
