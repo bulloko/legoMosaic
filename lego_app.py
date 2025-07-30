@@ -63,12 +63,16 @@ def closest_lego_color_lab(pixel_rgb):
     target = rgb_to_lab(pixel_rgb)
     closest = LEGO_COLORS[0]
     min_dist = float('inf')
+
     for color in LEGO_COLORS:
         lego_lab = rgb_to_lab(color["rgb"])
-        delta = delta_e_cie2000(target, lego_lab)
+        raw_delta = delta_e_cie2000(target, lego_lab)
+        delta = raw_delta.item() if hasattr(raw_delta, "item") else float(raw_delta)
+
         if delta < min_dist:
             min_dist = delta
             closest = color
+
     return closest["rgb"]
 
 # Fast RGB match
