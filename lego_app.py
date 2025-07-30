@@ -1,3 +1,6 @@
+import numpy
+if not hasattr(numpy, "asscalar"):
+    numpy.asscalar = lambda a: a.item()
 import streamlit as st
 from PIL import Image
 from io import BytesIO
